@@ -1,0 +1,488 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+<meta http-equiv="content-type" content="text/html; charset=UTF-8">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Randomized Divination Query Builder — v3 Optimized</title>
+  <style>
+    :root {
+      --bg: #0b1020;
+      --panel: #121a33;
+      --muted: #93a4c8;
+      --text: #e6e9f4;
+      --brand: #ff5470;
+      --brand-2: #7aa2ff;
+      --ok: #20c997;
+      --warn: #ffd166;
+      --border: rgba(255, 255, 255, 0.1);
+      --chip-bg: rgba(255, 255, 255, 0.06);
+      --input-bg: #0f1630;
+      --shadow: rgba(0, 0, 0, 0.45);
+      --focus-glow: rgba(122, 162, 255, 0.25);
+    }
+    *, *::before, *::after { box-sizing: border-box; }
+    html, body { height: 100%; }
+    body {
+      margin: 0;
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+      background: radial-gradient(1200px 800px at 70% -10%, rgba(122, 162, 255, 0.12), transparent 60%),
+                  radial-gradient(1000px 600px at 0% 100%, rgba(255, 84, 112, 0.08), transparent 60%),
+                  var(--bg);
+      color: var(--text);
+      padding: 24px;
+      display: grid;
+      place-items: center;
+    }
+    .card {
+      width: 100%;
+      max-width: 860px;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 32px;
+      box-shadow: 0 20px 60px var(--shadow);
+    }
+    h1 {
+      margin: 0 0 8px;
+      font-weight: 800;
+      letter-spacing: 0.2px;
+      color: var(--brand);
+    }
+    .subtitle {
+      color: var(--muted);
+      margin: 0 0 24px;
+    }
+    .grid { display: grid; gap: 20px; }
+    @media (min-width: 860px) { .grid.cols-2 { grid-template-columns: 1fr 1fr; } }
+    
+    .row { display: grid; gap: 8px; }
+    label { font-weight: 700; color: var(--brand-2); display: block; }
+    textarea, input[type="text"] {
+      width: 100%;
+      background: var(--input-bg);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 12px 14px;
+      border-radius: 10px;
+      font-size: 15px;
+      transition: box-shadow 0.15s, border-color 0.15s;
+    }
+    textarea::placeholder, input::placeholder { color: #6a7ca5; }
+    textarea:focus, input:focus {
+      outline: none;
+      border-color: var(--brand-2);
+      box-shadow: 0 0 0 3px var(--focus-glow);
+    }
+    textarea:read-only { background: var(--input-bg); }
+    .hint { color: var(--muted); font-size: 13px; font-weight: 400; }
+    .error {
+      color: var(--warn);
+      font-size: 13px;
+      min-height: 18px;
+    }
+    .btn {
+      appearance: none;
+      border: none;
+      background: var(--brand);
+      color: white;
+      padding: 14px 18px;
+      border-radius: 12px;
+      font-weight: 800;
+      cursor: pointer;
+      width: 100%;
+      transition: transform 0.1s ease, filter 0.2s ease;
+      letter-spacing: 0.4px;
+    }
+    .btn:hover:not(:disabled) { filter: brightness(1.1); }
+    .btn:active:not(:disabled) { transform: translateY(1px); }
+    .btn:disabled { cursor: not-allowed; filter: brightness(0.7); }
+    .btn.secondary { background: var(--brand-2); }
+    .btn.ghost { background: var(--chip-bg); color: var(--text); font-weight: 700; border: 1px solid var(--border); }
+    .btn.ok { background: var(--ok); }
+    
+    fieldset {
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 20px;
+    }
+    legend {
+      padding: 0 8px;
+      color: var(--brand);
+      font-weight: 800;
+      letter-spacing: 0.5px;
+    }
+    .toolbar { display: flex; gap: 12px; margin-top: 12px; }
+    
+    .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+    .chip {
+      background: var(--chip-bg);
+      border: 1px solid var(--border);
+      padding: 6px 12px;
+      border-radius: 999px;
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    .results {
+      width: 100%;
+      min-height: 300px;
+      white-space: pre-wrap;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+      font-size: 14px;
+      line-height: 1.6;
+      background: var(--bg); /* Darker bg for contrast */
+    }
+    .results:focus { box-shadow: none; border-color: var(--border); }
+
+    .hidden { display: none; }
+    .fade-in { animation: fadeIn 0.5s ease-out forwards; }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(-10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+  </style>
+</head>
+<body>
+  <main class="card">
+    <h1>Divination Query Builder</h1>
+    <p class="subtitle">A two-step tool to generate a randomized, unbiased divination spread based on your intent.</p>
+
+    <!-- STEP 1: Question -->
+    <div id="question-section" class="grid fade-in">
+      <div class="row">
+        <label for="question">Step 1 — Your Question</label>
+        <textarea id="question" rows="3" placeholder="What should I focus on for the next month?"></textarea>
+        <div id="question-error" class="error" aria-live="polite"></div>
+        <button id="submit-question-button" class="btn">Prepare the Session</button>
+        <div class="chips">
+            <span class="chip">Intention-Based Shuffle</span>
+            <span class="chip">Advanced Digital Randomization</span>
+            <span class="chip">Completely Confidential</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- STEP 2: Numbers -->
+    <div id="number-entry-section" class="grid hidden">
+      <fieldset>
+        <legend>Step 2 — Choose Your Numbers</legend>
+        <div class="grid cols-2">
+          <div class="row">
+            <label for="tarot-input">Tarot <span class="hint">(1, 3, or 10 numbers • 1–156)</span></label>
+            <input id="tarot-input" type="text" placeholder="e.g., 7, 42, 111">
+            <div id="tarot-error" class="error" aria-live="polite"></div>
+          </div>
+          <div class="row">
+            <label for="runes-input">Runes <span class="hint">(1 or 3 numbers • 1–50)</span></label>
+            <input id="runes-input" type="text" placeholder="e.g., 19 or 3, 17, 44">
+            <div id="runes-error" class="error" aria-live="polite"></div>
+          </div>
+          <div class="row">
+            <label for="iching-input">I-Ching <span class="hint">(1 number • 0–64)</span></label>
+            <input id="iching-input" type="text" placeholder="e.g., 25 or 0">
+            <div id="iching-error" class="error" aria-live="polite"></div>
+            <label for="iching-lines-input" class="hint" style="margin-top:4px;">Moving Lines (optional, any count • 1–6)</label>
+            <input id="iching-lines-input" type="text" placeholder="e.g., 2, 5">
+            <div id="iching-lines-error" class="error" aria-live="polite"></div>
+          </div>
+          <div class="row">
+            <label for="kabbalah-input">Kabbalah <span class="hint">(Optional, any count • 1–96)</span></label>
+            <input id="kabbalah-input" type="text" placeholder="e.g., 1, 11, 65">
+            <div id="kabbalah-error" class="error" aria-live="polite"></div>
+          </div>
+        </div>
+        <div class="toolbar">
+          <button id="generate-results-button" class="btn secondary">Generate Summary</button>
+          <button id="clear-button" class="btn ghost">Reset Inputs</button>
+        </div>
+      </fieldset>
+    </div>
+
+    <!-- STEP 3: Results -->
+    <div id="results-section" class="grid hidden" style="margin-top: 20px;">
+      <div class="row">
+        <label for="results-summary">Summary</label>
+        <textarea id="results-summary" class="results" readonly="readonly"></textarea>
+        <div class="toolbar">
+          <button id="copy-button" class="btn">Copy to Clipboard</button>
+          <button id="start-over-button" class="btn ghost">Start New Session</button>
+        </div>
+        <p class="hint">Tip: Paste the summary into your AI interpreter 
+of choice. Positions and sources are intentionally hidden to reduce bias
+ in the reading.</p>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    // ===== DATA CONSTANTS =====
+    const TAROT_CARDS = ["0: The Fool", "1: The Magician", "2: The High Priestess", "3: The Empress", "4: The Emperor", "5: The Hierophant", "6: The Lovers", "7: The Chariot", "8: Strength", "9: The Hermit", "10: Wheel of Fortune", "11: Justice", "12: The Hanged Man", "13: Death", "14: Temperance", "15: The Devil", "16: The Tower", "17: The Star", "18: The Moon", "19: The Sun", "20: Judgement", "21: The World", "22: Ace of Wands", "23: Two of Wands", "24: Three of Wands", "25: Four of Wands", "26: Five of Wands", "27: Six of Wands", "28: Seven of Wands", "29: Eight of Wands", "30: Nine of Wands", "31: Ten of Wands", "32: Page of Wands", "33: Knight of Wands", "34: Queen of Wands", "35: King of Wands", "36: Ace of Cups", "37: Two of Cups", "38: Three of Cups", "39: Four of Cups", "40: Five of Cups", "41: Six of Cups", "42: Seven of Cups", "43: Eight of Cups", "44: Nine of Cups", "45: Ten of Cups", "46: Page of Cups", "47: Knight of Cups", "48: Queen of Cups", "49: King of Cups", "50: Ace of Swords", "51: Two of Swords", "52: Three of Swords", "53: Four of Swords", "54: Five of Swords", "55: Six of Swords", "56: Seven of Swords", "57: Eight of Swords", "58: Nine of Swords", "59: Ten of Swords", "60: Page of Swords", "61: Knight of Swords", "62: Queen of Swords", "63: King of Swords", "64: Ace of Pentacles", "65: Two of Pentacles", "66: Three of Pentacles", "67: Four of Pentacles", "68: Five of Pentacles", "69: Six of Pentacles", "70: Seven of Pentacles", "71: Eight of Pentacles", "72: Nine of Pentacles", "73: Ten of Pentacles", "74: Page of Pentacles", "75: Knight of Pentacles", "76: Queen of Pentacles", "77: King of Pentacles"];
+    const CELTIC_CROSS_POSITIONS = ["The Heart of the Matter", "The Crossing Card (Challenge)", "The Foundation (Basis)", "The Recent Past", "The Crown (Potential Outcome)", "The Near Future", "Yourself / Your Attitude", "Your Environment / External Influences", "Hopes and Fears", "The Final Outcome"];
+    const ICHING_HEXAGRAMS = ["0: The Tao (Beyond the System)", "1: Ch'ien / The Creative", "2: K'un / The Receptive", "3: Chun / Difficulty at the Beginning", "4: Meng / Youthful Folly", "5: Hsü / Waiting", "6: Sung / Conflict", "7: Shih / The Army", "8: Pi / Holding Together", "9: Hsiao Ch'u / The Taming Power of the Small", "10: Lü / Treading", "11: T'ai / Peace", "12: P'i / Standstill", "13: T'ung Jen / Fellowship with Men", "14: Ta Yu / Possession in Great Measure", "15: Ch'ien / Modesty", "16: Yü / Enthusiasm", "17: Sui / Following", "18: Ku / Work on What Has Been Spoiled", "19: Lin / Approach", "20: Kuan / Contemplation", "21: Shih Ho / Biting Through", "22: Pi / Grace", "23: Po / Splitting Apart", "24: Fu / Return", "25: Wu Wang / Innocence", "26: Ta Ch'u / The Taming Power of the Great", "27: I / Corners of the Mouth", "28: Ta Kuo / Preponderance of the Great", "29: K'an / The Abysmal", "30: Li / The Clinging (Fire)", "31: Hsien / Influence (Wooing)", "32: Heng / Duration", "33: Tun / Retreat", "34: Ta Chuang / The Power of the Great", "35: Chin / Progress", "36: Ming I / Darkening of the Light", "37: Chia Jen / The Family", "38: K'uei / Opposition", "39: Chien / Obstruction", "40: Hsieh / Deliverance", "41: Sun / Decrease", "42: I / Increase", "43: Kuai / Break-through", "44: Kou / Coming to Meet", "45: Ts'ui / Gathering Together", "46: Sheng / Pushing Upward", "47: Kùn / Oppression (Exhaustion)", "48: Ching / The Well", "49: Ko / Revolution", "50: Ting / The Cauldron", "51: Chen / The Arousing", "52: Ken / Keeping Still", "53: Chien / Gradual Progress (Development)", "54: Kuei Mei / The Marrying Maiden", "55: Feng / Abundance", "56: Lü / The Wanderer", "57: Sun / The Gentle", "58: Tui / The Joyous", "59: Huan / Dispersion", "60: Chieh / Limitation", "61: Chung Fu / Inner Truth", "62: Hsiao Kuo / Preponderance of the Small", "63: Chi Chi / After Completion", "64: Wei Chi / Before Completion"];
+    const KABBALAH_SEFIROT = ["1: Kether (Crown)", "2: Chokmah (Wisdom)", "3: Binah (Understanding)", "4: Chesed (Mercy)", "5: Geburah (Strength)", "6: Tiphareth (Beauty)", "7: Netzach (Victory)", "8: Hod (Splendor)", "9: Yesod (Foundation)", "10: Malkuth (Kingdom)", "11: Path of Aleph (Fool)", "12: Path of Beth (Magician)", "13: Path of Gimel (High Priestess)", "14: Path of Daleth (Empress)", "15: Path of Heh (Emperor)", "16: Path of Vav (Hierophant)", "17: Path of Zayin (Lovers)", "18: Path of Cheth (Chariot)", "19: Path of Teth (Strength)", "20: Path of Yod (Hermit)", "21: Path of Kaph (Wheel)", "22: Path of Lamed (Justice)", "23: Path of Mem (Hanged Man)", "24: Path of Nun (Death)", "25: Path of Samekh (Temperance)", "26: Path of Ayin (Devil)", "27: Path of Peh (Tower)", "28: Path of Tzaddi (Star)", "29: Path of Qoph (Moon)", "30: Path of Resh (Sun)", "31: Path of Shin (Judgement)", "32: Path of Tau (World)"];
+    const ELDER_FUTHARK_RUNES = ["1: Fehu (Wealth)", "2: Uruz (Strength)", "3: Thurisaz (Conflict/Thorn)", "4: Ansuz (Insight/Communication)", "5: Raidho (Journey)", "6: Kenaz (Torch/Creativity)", "7: Gebo (Gift/Exchange)", "8: Wunjo (Joy)", "9: Hagalaz (Disruption)", "10: Nauthiz (Need)", "11: Isa (Stillness)", "12: Jera (Harvest)", "13: Eihwaz (Endurance)", "14: Perthro (Mystery/Lot Cup)", "15: Algiz (Protection)", "16: Sowilo (Vitality)", "17: Tiwaz (Justice)", "18: Berkano (Growth)", "19: Ehwaz (Movement)", "20: Mannaz (Self/Humanity)", "21: Laguz (Flow)", "22: Ingwaz (Seed)", "23: Dagaz (Breakthrough)", "24: Othala (Ancestral Home)", "25: Blank/Odin Rune (Beyond the System)"];
+
+    // ===== APPLICATION STATE =====
+    let mapper = null;
+    let userQuestion = '';
+
+    // ===== DOM ELEMENT CACHE =====
+    const els = {
+      qSection: document.getElementById('question-section'),
+      q: document.getElementById('question'),
+      qErr: document.getElementById('question-error'),
+      prepBtn: document.getElementById('submit-question-button'),
+      
+      numSection: document.getElementById('number-entry-section'),
+      tarot: document.getElementById('tarot-input'),
+      tarotErr: document.getElementById('tarot-error'),
+      runes: document.getElementById('runes-input'),
+      runesErr: document.getElementById('runes-error'),
+      iching: document.getElementById('iching-input'),
+      ichingErr: document.getElementById('iching-error'),
+      ichingLines: document.getElementById('iching-lines-input'),
+      ichingLinesErr: document.getElementById('iching-lines-error'),
+      kabbalah: document.getElementById('kabbalah-input'),
+      kabbalahErr: document.getElementById('kabbalah-error'),
+      generateBtn: document.getElementById('generate-results-button'),
+      clearBtn: document.getElementById('clear-button'),
+      
+      resultsSection: document.getElementById('results-section'),
+      out: document.getElementById('results-summary'),
+      copyBtn: document.getElementById('copy-button'),
+      startOverBtn: document.getElementById('start-over-button'),
+    };
+
+    // ===== RNG & HASHING UTILITIES =====
+    const seededRNG = seed => () => {
+      let t = seed += 0x6D2B79F5;
+      t = Math.imul(t ^ t >>> 15, t | 1);
+      t ^= t + Math.imul(t ^ t >>> 7, t | 61);
+      return ((t ^ t >>> 14) >>> 0) / 4294967296;
+    };
+
+    async function createSeedHash(question) {
+      const salt = String(Date.now()) + question;
+      const encoder = new TextEncoder();
+      let buffer = encoder.encode(salt);
+      for (let i = 0; i < 8888; i++) {
+        buffer = await crypto.subtle.digest('SHA-256', buffer);
+      }
+      return [...new Uint8Array(buffer)].map(b => b.toString(16).padStart(2, '0')).join('');
+    }
+
+    // ===== DIVINATION MAPPER CLASS =====
+    class DivinationMapper {
+      constructor(seedHash) {
+        const seed = Number(BigInt('0x' + seedHash.slice(0, 8)) & 0xFFFFFFFFn);
+        const rng = seededRNG(seed);
+        
+        // *** BUG FIX ***: Replaced the shuffle function with the more robust
+        // standard Fisher-Yates implementation to guarantee a correct shuffle.
+        const shuffle = (arr) => {
+          let clone = [...arr]; // Work on a clone to be safe
+          for (let i = clone.length - 1; i > 0; i--) {
+            const j = Math.floor(rng() * (i + 1));
+            [clone[i], clone[j]] = [clone[j], clone[i]];
+          }
+          return clone;
+        };
+        
+        // Tarot: Create a full deck of 156 (78 upright, 78 reversed) and shuffle it.
+        const tarotMaster = [];
+        TAROT_CARDS.forEach(c => {
+          tarotMaster.push(`${c} (Upright)`);
+          tarotMaster.push(`${c} (Reversed)`);
+        });
+        this.tarotMap = shuffle(tarotMaster);
+
+        // Runes: Create a full set of 50 (24x2 for U/R, + 2 blank) and shuffle it.
+        const runesMaster = [];
+        ELDER_FUTHARK_RUNES.forEach(base => {
+          if (base.includes('Blank/Odin')) {
+            runesMaster.push(base);
+            runesMaster.push(base);
+          } else {
+            runesMaster.push(`${base} (Upright)`);
+            runesMaster.push(`${base} (Reversed)`);
+          }
+        });
+        this.runesMap = shuffle(runesMaster);
+
+        // I-Ching: Shuffle the indices (1-64)
+        this.ichingMap = shuffle(Array.from({ length: 64 }, (_, i) => i + 1));
+
+        // I-Ching Moving Lines: Shuffle the 6 possible lines.
+        const movingLinesMaster = [1, 2, 3, 4, 5, 6];
+        this.ichingLinesMap = shuffle(movingLinesMaster);
+
+        // Kabbalah: Create a full set of 96 (32 paths x 3 states) and shuffle it.
+        const kabbalahMaster = [];
+        KABBALAH_SEFIROT.forEach(k => {
+          ['Balanced', 'Excessive', 'Deficient'].forEach(st => kabbalahMaster.push(`${k} (${st})`));
+        });
+        this.kabbalahMap = shuffle(kabbalahMaster);
+      }
+
+      getTarot(numbers) { return numbers.map(n => this.tarotMap[n - 1]); }
+      getRunes(numbers) { return numbers.map(n => this.runesMap[n - 1]); }
+      getIChing(number) { return ICHING_HEXAGRAMS[this.ichingMap[number - 1]]; }
+      getIChingMovingLines(numbers) { return numbers.map(n => this.ichingLinesMap[n - 1]); }
+      getKabbalah(numbers) { return numbers.map(n => this.kabbalahMap[n - 1]); }
+    }
+
+    // ===== VALIDATION LOGIC =====
+    function clearAllErrors() {
+      document.querySelectorAll('.error').forEach(el => el.textContent = '');
+    }
+
+    function parseAndValidate(value, min, max, allowedCounts = null, canBeEmpty = false) {
+      if (value.trim() === '') {
+        return canBeEmpty ? { value: [] } : { error: 'This field cannot be empty.' };
+      }
+      const parts = value.split(',').map(p => p.trim()).filter(Boolean);
+      if (allowedCounts && !allowedCounts.includes(parts.length)) {
+        return { error: `Please provide exactly ${allowedCounts.join(' or ')} numbers.` };
+      }
+      const out = [];
+      for (const p of parts) {
+        const n = parseInt(p, 10);
+        if (Number.isNaN(n)) return { error: `'${p}' is not a valid number.` };
+        if (n < min || n > max) return { error: `Number ${n} is out of range (${min}–${max}).` };
+        out.push(n);
+      }
+      return { value: out };
+    }
+    
+    // ===== UI & EVENT LOGIC =====
+    function resetSession() {
+      mapper = null;
+      userQuestion = '';
+      els.q.value = '';
+      els.q.readOnly = false;
+      els.prepBtn.disabled = false;
+      els.prepBtn.textContent = 'Prepare the Session';
+      els.prepBtn.classList.remove('ok');
+      els.numSection.classList.add('hidden');
+      els.resultsSection.classList.add('hidden');
+      clearNumberInputs();
+      clearAllErrors();
+      els.qSection.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+
+    function clearNumberInputs() {
+      [els.tarot, els.iching, els.ichingLines, els.kabbalah, els.runes].forEach(i => i.value = '');
+      clearAllErrors();
+    }
+    
+    els.prepBtn.addEventListener('click', async () => {
+      clearAllErrors();
+      userQuestion = els.q.value.trim();
+      if (!userQuestion) {
+        els.qErr.textContent = 'Please enter a question to seed the session.';
+        return;
+      }
+      els.prepBtn.disabled = true;
+      els.prepBtn.textContent = 'Preparing…';
+      els.q.readOnly = true;
+      try {
+        const seedHash = await createSeedHash(userQuestion);
+        mapper = new DivinationMapper(seedHash);
+        els.prepBtn.textContent = 'Session Ready';
+        els.prepBtn.classList.add('ok');
+        els.numSection.classList.remove('hidden');
+        els.numSection.classList.add('fade-in');
+        els.resultsSection.classList.add('hidden');
+        els.numSection.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      } catch (err) {
+        console.error("Hashing failed:", err);
+        els.qErr.textContent = 'Could not prepare session. Please try again.';
+        els.prepBtn.disabled = false;
+        els.prepBtn.textContent = 'Prepare the Session';
+        els.q.readOnly = false;
+      }
+    });
+
+    els.generateBtn.addEventListener('click', () => {
+      clearAllErrors();
+      if (!mapper) {
+        alert('Session is not prepared. Please enter a question and prepare the session first.');
+        return;
+      }
+
+      let ok = true;
+      const data = {};
+      const tarot = parseAndValidate(els.tarot.value, 1, 156, [1, 3, 10]);
+      if (tarot.error) { els.tarotErr.textContent = tarot.error; ok = false; } else data.user_tarot = tarot.value;
+
+      const runes = parseAndValidate(els.runes.value, 1, 50, [1, 3]);
+      if (runes.error) { els.runesErr.textContent = runes.error; ok = false; } else data.user_runes = runes.value;
+      
+      const iching = parseAndValidate(els.iching.value, 0, 64, [1]);
+      if (iching.error) { els.ichingErr.textContent = iching.error; ok = false; } else data.user_iching = iching.value[0];
+
+      const ichingLines = parseAndValidate(els.ichingLines.value, 1, 6, null, true);
+      if (ichingLines.error) { els.ichingLinesErr.textContent = ichingLines.error; ok = false; } else data.iching_lines = ichingLines.value;
+
+      const kabbalah = parseAndValidate(els.kabbalah.value, 1, 96, null, true);
+      if (kabbalah.error) { els.kabbalahErr.textContent = kabbalah.error; ok = false; } else data.user_kabbalah = kabbalah.value;
+
+      if (!ok) return;
+
+      // Generate Summary
+      let summary = `My Question: "${userQuestion}"\n` +
+                    `Please provide an interpretation based on the following results. The session uses a deterministic hashed shuffle to reduce bias.\n\n`;
+
+      const tarotResults = mapper.getTarot(data.user_tarot);
+      summary += `--- Tarot ---\n`;
+      if (tarotResults.length === 1) {
+        summary += `Card: ${tarotResults[0]}\n`;
+      } else if (tarotResults.length === 3) {
+        summary += `Spread: Past • Present • Future\n`;
+        ['Past', 'Present', 'Future'].forEach((label, i) => { summary += `${label}: ${tarotResults[i]}\n`; });
+      } else if (tarotResults.length === 10) {
+        summary += `Spread: Celtic Cross\n`;
+        CELTIC_CROSS_POSITIONS.forEach((pos, i) => { summary += `${i + 1}. ${pos}: ${tarotResults[i]}\n`; });
+      }
+
+      const runesResults = mapper.getRunes(data.user_runes);
+      summary += `\n--- Runes ---\n`;
+      summary += `Runes: ${runesResults.join(', ')}\n`;
+      
+      summary += `\n--- I‑Ching ---\n`;
+      if (data.user_iching === 0) {
+        summary += `Hexagram: ${ICHING_HEXAGRAMS[0]}\n`;
+      } else {
+        summary += `Hexagram: ${mapper.getIChing(data.user_iching)}\n`;
+      }
+      
+      const mappedIchingLines = mapper.getIChingMovingLines(data.iching_lines);
+      summary += `Moving Lines: ${mappedIchingLines.length ? mappedIchingLines.join(', ') : 'None'}\n`;
+      
+      summary += `\n--- Kabbalah ---\n`;
+      const kabbalahResults = mapper.getKabbalah(data.user_kabbalah);
+      summary += `Paths/States: ${kabbalahResults.length ? kabbalahResults.join(', ') : 'None'}\n`;
+
+      els.out.value = summary.trim();
+      els.resultsSection.classList.remove('hidden');
+      els.resultsSection.classList.add('fade-in');
+      els.out.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    });
+
+    els.clearBtn.addEventListener('click', clearNumberInputs);
+    els.startOverBtn.addEventListener('click', resetSession);
+
+    els.copyBtn.addEventListener('click', () => {
+      navigator.clipboard.writeText(els.out.value).then(() => {
+        const originalText = els.copyBtn.textContent;
+        els.copyBtn.textContent = 'Copied!';
+        els.copyBtn.disabled = true;
+        setTimeout(() => {
+          els.copyBtn.textContent = originalText;
+          els.copyBtn.disabled = false;
+        }, 1800);
+      });
+    });
+  </script>
+
+</body></html>
